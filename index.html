@@ -1,0 +1,903 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TrackIt</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* Clinical palette: navy is used only for app chrome; actions stay green (go) and red (help)
+   because blue reads faded to aging eyes. Status is never shown by color alone. */
+:root{
+  --bg:#F2F4F7; --surface:#FFFFFF; --sunken:#F7F9FB; --ink:#0F1B2A; --muted:#4A5868; --line:#D3DAE2; --line-strong:#A9B4C0;
+  --chrome:#12304A; --chrome-ink:#FFFFFF; --chrome-muted:#B9C8D6;
+  --go:#17643F; --go-ink:#FFFFFF; --go-bg:#E5F2EB;
+  --help:#B3121B; --help-ink:#FFFFFF; --help-bg:#FBE7E8; --alarm-screen:#9E1018;
+  --warn:#8A5200; --warn-bg:#FFF2DB;
+  --radius:10px; --radius-sm:6px;
+  --shadow:0 1px 2px rgba(15,27,42,.06),0 2px 8px rgba(15,27,42,.05);
+  --scale:1.25;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0D141B; --surface:#16202A; --sunken:#111A22; --ink:#ECF1F5; --muted:#A8B6C3; --line:#2A3846; --line-strong:#40536A;
+    --chrome:#0A1F31; --chrome-ink:#FFFFFF; --chrome-muted:#9FB4C7;
+    --go:#6FCF97; --go-ink:#0B1A12; --go-bg:#15301F;
+    --help:#FF858C; --help-ink:#2B0507; --help-bg:#3A171A; --alarm-screen:#4A0F14;
+    --warn:#F5B95A; --warn-bg:#36290F;
+    --shadow:none;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0D141B; --surface:#16202A; --sunken:#111A22; --ink:#ECF1F5; --muted:#A8B6C3; --line:#2A3846; --line-strong:#40536A;
+  --chrome:#0A1F31; --chrome-ink:#FFFFFF; --chrome-muted:#9FB4C7;
+  --go:#6FCF97; --go-ink:#0B1A12; --go-bg:#15301F;
+  --help:#FF858C; --help-ink:#2B0507; --help-bg:#3A171A; --alarm-screen:#4A0F14;
+  --warn:#F5B95A; --warn-bg:#36290F;
+  --shadow:none;
+  color-scheme:dark;
+}
+:root[data-size="1"]{--scale:1.1}
+:root[data-size="2"]{--scale:1.25}
+:root[data-size="3"]{--scale:1.45}
+:root{box-sizing:border-box;padding-bottom:env(safe-area-inset-bottom,0px);font-size:calc(16px * var(--scale))}
+html{scroll-padding-top:calc(env(safe-area-inset-top,0px) + 5.5rem)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Atkinson Hyperlegible",Verdana,Tahoma,system-ui,sans-serif;font-size:1rem;line-height:1.5}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--chrome);z-index:30}
+h1,h2,h3,p{margin:0}
+h1{font-size:1.5rem;line-height:1.2;letter-spacing:-.01em}
+h2{font-size:1.2rem;line-height:1.25}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+[hidden]{display:none !important}
+svg.i{width:1.25em;height:1.25em;flex-shrink:0;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* App bar + patient banner */
+.appbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:25;background:var(--chrome);color:var(--chrome-ink)}
+.appbar-in{max-width:760px;margin:0 auto;padding:.6rem 1rem;display:flex;align-items:center;justify-content:space-between;gap:1rem}
+.brand{display:flex;align-items:center;gap:.6rem}
+.brand .mark{width:2.1rem;height:2.1rem;border-radius:7px;background:var(--chrome-ink);color:var(--chrome);display:grid;place-items:center}
+.brand .mark svg{width:1.4rem;height:1.4rem;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.brand-name{display:block;font-weight:700;font-size:1.05rem;line-height:1.1}
+.brand-sub{display:block;white-space:nowrap;font-size:.8rem;color:var(--chrome-muted);line-height:1.2}
+.tools{display:flex;gap:.4rem;flex-shrink:0}
+.tool{min-height:2.75rem;min-width:2.75rem;padding:.3rem .7rem;border-radius:var(--radius-sm);border:1px solid rgba(255,255,255,.35);background:transparent;color:var(--chrome-ink);font-weight:700;font-size:.9rem;cursor:pointer}
+.tool[aria-pressed="true"]{background:var(--chrome-ink);color:var(--chrome)}
+.ptbanner{background:var(--surface);border-bottom:1px solid var(--line)}
+.ptbanner-in{max-width:760px;margin:0 auto;padding:.6rem 1rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(10rem,1fr));gap:.4rem 1.25rem}
+.eyebrow{display:block;font-size:.75rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.ptbanner strong{display:block;font-size:1rem;line-height:1.3}
+.state-on{color:var(--go)} .state-warn{color:var(--warn)} .state-off{color:var(--muted)}
+
+.wrap{max-width:760px;margin:0 auto;padding:1.25rem 1rem 3rem}
+.top{display:flex;justify-content:space-between;align-items:flex-end;gap:1rem;margin-bottom:1rem;flex-wrap:wrap}
+.today{color:var(--muted);font-size:1rem;margin-top:.15rem}
+
+/* Buttons */
+.btn{display:flex;align-items:center;justify-content:center;gap:.6rem;width:100%;min-height:3.75rem;padding:.7rem 1rem;border-radius:var(--radius);border:2px solid var(--go);background:var(--go);color:var(--go-ink);font-weight:700;font-size:1.1rem;cursor:pointer;text-decoration:none;text-align:center}
+.btn:active{transform:translateY(1px)}
+.btn.plain{background:var(--surface);color:var(--ink);border:1px solid var(--line-strong)}
+.btn.help{background:var(--help);border-color:var(--help);color:var(--help-ink)}
+.btn.huge{min-height:5rem;font-size:1.4rem}
+.btn.link{width:auto;min-height:2.75rem;padding:.3rem .8rem;font-size:1rem;background:transparent;color:var(--ink);border:1px solid var(--line-strong)}
+.stack{display:grid;gap:.75rem}
+/* Fixed 25px gap above the help button, at every text size */
+#connectArea{margin-bottom:20px}
+#helpArea{margin-top:20px}
+.section-label{font-size:.8rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:1.5rem 0 .5rem}
+
+/* Status card */
+.status{background:var(--surface);border:1px solid var(--line);border-left:6px solid var(--go);border-radius:var(--radius);box-shadow:var(--shadow);padding:1.1rem 1.1rem;margin-bottom:1rem;display:grid;grid-template-columns:auto 1fr;gap:.9rem;align-items:start}
+.status .icon{width:2.75rem;height:2.75rem;border-radius:50%;display:grid;place-items:center;background:var(--go-bg);color:var(--go)}
+.status .icon svg{width:1.6rem;height:1.6rem}
+.status h2{font-size:1.4rem}
+.status p{margin-top:.2rem;font-size:1.05rem;color:var(--ink)}
+.status.warn{border-left-color:var(--warn)} .status.warn .icon{background:var(--warn-bg);color:var(--warn)}
+.status.alarm{border-left-color:var(--help);background:var(--help-bg)} .status.alarm .icon{background:var(--help);color:var(--help-ink)}
+.status.idle{border-left-color:var(--line-strong)} .status.idle .icon{background:var(--sunken);color:var(--muted)}
+
+/* Vitals */
+.list{display:grid;grid-template-columns:repeat(auto-fit,minmax(15rem,1fr));gap:.75rem;margin-bottom:1rem}
+.item{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:.9rem 1rem;display:grid;grid-template-columns:1fr auto;grid-template-rows:auto 1fr;gap:.35rem .75rem;align-items:start}
+.item .what{font-size:.8rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.item .num{grid-column:1/-1;font-size:2.2rem;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums}
+.item .num small{font-size:1rem;font-weight:400;color:var(--muted);margin-left:.3rem}
+.item .num small.u{display:inline}
+.tag{grid-row:1;grid-column:2;justify-self:end;padding:.15rem .6rem;border-radius:var(--radius-sm);font-weight:700;font-size:.9rem;border:1px solid currentColor;white-space:nowrap}
+.tag.ok{color:var(--go);background:var(--go-bg)}
+.tag.warn{color:var(--warn);background:var(--warn-bg)}
+.tag.alarm{color:var(--help);background:var(--help-bg)}
+.tag.none{color:var(--muted);background:var(--sunken)}
+
+.contact{display:grid;gap:.75rem;margin-top:.75rem}
+.foot{margin-top:2rem;padding-top:1rem;border-top:1px solid var(--line);display:grid;gap:.75rem}
+.note{color:var(--muted);font-size:.95rem}
+
+/* Full-screen moments */
+.screen{position:fixed;inset:0;z-index:40;background:var(--bg);overflow:auto;padding:calc(env(safe-area-inset-top,0px) + 1.25rem) 1rem calc(env(safe-area-inset-bottom,0px) + 1.25rem)}
+.screen .inner{max-width:540px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;gap:1rem;justify-content:center}
+.screen .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:1.5rem 1.25rem;display:grid;gap:1rem}
+.screen h1{font-size:2rem;text-align:center}
+.screen p.lead{font-size:1.2rem;text-align:center}
+.screen.alarm{background:var(--alarm-screen)}
+.screen.alarm .card{border-top:6px solid var(--help)}
+.screen-icon{width:3.5rem;height:3.5rem;margin:0 auto;border-radius:50%;display:grid;place-items:center;background:var(--help-bg);color:var(--help)}
+.screen-icon svg{width:2rem;height:2rem}
+.ring{font-size:4.25rem;font-weight:700;text-align:center;line-height:1;color:var(--help);font-variant-numeric:tabular-nums}
+.ring small{display:block;font-size:1rem;font-weight:400;color:var(--muted);margin-top:.35rem}
+
+/* Settings */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:1rem;overflow:hidden}
+.panel > h2{padding:.85rem 1.1rem;background:var(--sunken);border-bottom:1px solid var(--line);font-size:1.1rem;display:flex;align-items:center;gap:.6rem}
+.panel > .note{padding:.75rem 1.1rem 0}
+.panel > .field,.panel > .namepair,.panel > h3,.panel > .stack,.panel > .log{margin-left:1.1rem;margin-right:1.1rem}
+.panel > .field:last-child,.panel > .stack:last-child,.panel > .log:last-child{margin-bottom:1rem}
+.panel.person:has(#hPatient) > h2{box-shadow:inset 5px 0 0 var(--go)}
+.panel.person:has(#hCare) > h2{box-shadow:inset 5px 0 0 var(--warn)}
+.role{font-size:.75rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:.1rem .45rem;border-radius:4px;border:1px solid currentColor;margin-left:auto}
+#hPatient .role{color:var(--go)} #hCare .role{color:var(--warn)}
+.field{display:grid;gap:.35rem;padding:.8rem 0;border-top:1px solid var(--line)}
+.panel > .note + .field,.panel > h2 + .field,.panel > h3 + .field{border-top:0}
+.field label,.flabel{font-weight:700}
+.field .hint{color:var(--muted);font-size:.9rem}
+input[type=number],input[type=text],input[type=tel],input[type=url],input[type=password],select{width:100%;min-height:3rem;padding:.5rem .7rem;border:1px solid var(--line-strong);border-radius:var(--radius-sm);background:var(--surface)}
+input:focus,select:focus{border-color:var(--ink);outline:2px solid var(--ink);outline-offset:0}
+.seg{display:flex;gap:0;flex-wrap:nowrap;border:1px solid var(--line-strong);border-radius:var(--radius-sm);overflow:hidden}
+.seg button{flex:1 1 0;min-width:0;padding:.25rem .4rem;min-height:3rem;border:0;border-left:1px solid var(--line-strong);background:var(--surface);font-weight:700;cursor:pointer}
+.seg button:first-child{border-left:0}
+#demoField .seg{flex-wrap:wrap}
+#demoField .seg button{flex:1 1 7rem;border-top:1px solid var(--line-strong);margin-top:-1px}
+@media (max-width:440px){.brand-sub{display:none}.appbar-in{gap:.5rem}}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
+textarea.mono{width:100%;min-height:3rem;padding:.5rem .7rem;border:1px solid var(--line-strong);border-radius:var(--radius-sm);background:var(--sunken);resize:none;word-break:break-all;font-size:1.05rem;line-height:1.4}
+textarea.mono:focus{border-color:var(--ink);outline:2px solid var(--ink);outline-offset:0}
+.mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;letter-spacing:.02em}
+.btnrow{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
+.btnrow .btn{min-height:3rem;font-size:1rem}
+@media (max-width:440px){.btnrow{grid-template-columns:1fr}}
+.log{list-style:none;padding:0;max-height:22rem;overflow:auto;font-size:.9rem;margin-top:.5rem}
+.log li{padding:.45rem 0;border-top:1px solid var(--line);display:grid;grid-template-columns:5.5rem 1fr;gap:.6rem}
+.log li:first-child{border-top:0}
+.log time{color:var(--muted);font-variant-numeric:tabular-nums}
+.log .a{color:var(--help);font-weight:700}
+.log .w{color:var(--warn);font-weight:700}
+.savebar{position:sticky;bottom:0;z-index:5;background:var(--surface);border-top:1px solid var(--line);margin:0 -1rem 1rem;padding:.75rem 1rem calc(.75rem + env(safe-area-inset-bottom,0px));display:grid;gap:.25rem}
+.saved{color:var(--go);font-weight:700;min-height:1.25rem;font-size:.95rem}
+h3.sub{font-size:.8rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-top:.5rem;padding-top:1rem;border-top:1px solid var(--line)}
+.namepair{display:grid;grid-template-columns:1fr 1fr;gap:0 1rem}
+.namepair .field{border-top:0}
+@media (max-width:460px){.namepair{grid-template-columns:1fr}}
+.slabel{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:.25rem 1rem}
+.slabel label{flex:1 1 12rem}
+.slabel output{font-size:1.25rem;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums;padding:.05rem .5rem;border-radius:var(--radius-sm);background:var(--sunken);border:1px solid var(--line)}
+.ends{display:flex;justify-content:space-between;color:var(--muted);font-size:.85rem;margin-top:-.2rem}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:2.75rem;background:transparent;cursor:pointer;margin:0}
+input[type=range]::-webkit-slider-runnable-track{height:.45rem;border-radius:.25rem;background:linear-gradient(to right,var(--ink) var(--fill,50%),var(--line) var(--fill,50%))}
+input[type=range]::-moz-range-track{height:.45rem;border-radius:.25rem;background:var(--line)}
+input[type=range]::-moz-range-progress{height:.45rem;border-radius:.25rem;background:var(--ink)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:1.9rem;height:1.9rem;border-radius:50%;background:var(--surface);border:3px solid var(--ink);margin-top:-.73rem;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+input[type=range]::-moz-range-thumb{width:1.7rem;height:1.7rem;border-radius:50%;background:var(--surface);border:3px solid var(--ink)}
+input[type=range]:focus-visible{outline:3px solid var(--ink);outline-offset:2px;border-radius:6px}
+@media (prefers-reduced-motion:no-preference){ .screen.alarm .ring{animation:beat 1s ease-in-out infinite} }
+@keyframes beat{50%{transform:scale(1.05)}}
+</style>
+</head>
+<body>
+
+<!-- ================= APP BAR + PATIENT BANNER ================= -->
+<header class="appbar">
+  <div class="appbar-in">
+    <div class="brand">
+      <div class="mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l2-5 4 10 2-5h6"/></svg></div>
+      <div><span class="brand-name">TrackIt</span><span class="brand-sub">Patient Monitor</span></div>
+    </div>
+    <div class="tools">
+      <button class="tool" id="sizeBtn" aria-label="Change text size">A<span style="font-size:1.3em">A</span></button>
+      <button class="tool" id="speakBtn" aria-pressed="false" aria-label="Read messages out loud">Voice off</button>
+    </div>
+  </div>
+</header>
+<div class="ptbanner" aria-label="Patient information">
+  <div class="ptbanner-in">
+    <div><span class="eyebrow">Patient</span><strong id="bnPatient">Not set</strong></div>
+    <div><span class="eyebrow">Care contact</span><strong id="bnContact">Not set</strong></div>
+    <div><span class="eyebrow">Watch</span><strong id="bnWatch" class="state-off">Not connected</strong></div>
+  </div>
+</div>
+
+<!-- ================= PATIENT HOME ================= -->
+<main class="wrap" id="home">
+  <div class="top">
+    <div>
+      <h1 id="hello">Hello</h1>
+      <p class="today" id="today"></p>
+    </div>
+  </div>
+
+  <section class="status idle" id="status" aria-live="polite">
+    <div class="icon" id="statusIcon" aria-hidden="true"></div>
+    <div>
+      <h2 id="statusTitle">Your Watch Is Not Connected</h2>
+      <p id="statusText">Press “Connect my watch” to start.</p>
+    </div>
+  </section>
+
+  <div class="stack" id="connectArea">
+    <button class="btn huge" id="connectBtn"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="3"/><path d="M9 6l1-3h4l1 3M9 18l1 3h4l1-3M12 9.5V12l1.5 1.5"/></svg>Connect my watch</button>
+  </div>
+
+  <h2 class="section-label" id="readingsLabel" hidden>Current Readings</h2>
+  <section class="list" id="readings" aria-labelledby="readingsLabel" hidden>
+    <div class="item"><div class="what">Heart rate</div><div class="num" id="hrNum">--</div><span class="tag none" id="hrTag">--</span></div>
+    <div class="item"><div class="what">Blood oxygen</div><div class="num" id="oxNum">--</div><span class="tag none" id="oxTag">--</span></div>
+    <div class="item"><div class="what" id="aidLabel">Your walker</div><div class="num" id="distNum">--</div><span class="tag none" id="distTag">--</span></div>
+    <div class="item"><div class="what">Watch battery</div><div class="num" id="batNum">--</div><span class="tag none" id="batTag">--</span></div>
+  </section>
+
+  <div class="stack" id="helpArea">
+    <button class="btn help huge" id="helpBtn"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 20h20L12 3z"/><path d="M12 10v4M12 17.5v.01"/></svg>I need help</button>
+  </div>
+
+  <div class="contact" id="contactArea"></div>
+
+  <div class="foot">
+    <button class="btn plain" id="openSettings"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Caretaker settings</button>
+    <p class="note">TrackIt supports, and does not replace, clinical care or emergency services. In an emergency, call 911.</p>
+  </div>
+</main>
+
+<!-- ================= CARETAKER SETTINGS ================= -->
+<main class="wrap" id="settings" hidden>
+  <div class="top">
+    <div><h1>Caretaker Settings</h1><p class="today">Patient profile, care contact, alert thresholds and device</p></div>
+    <button class="btn link" data-back><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>Home</button>
+  </div>
+
+  <section class="panel person" aria-labelledby="hPatient">
+    <h2 id="hPatient">Patient <span class="role">Wears the watch</span></h2>
+    <p class="note">The person wearing the watch. These choices change what the patient sees and hears.</p>
+    <div class="namepair">
+      <div class="field"><label for="pFirst">First name</label><input type="text" id="pFirst" autocomplete="off" autocapitalize="words"></div>
+      <div class="field"><label for="pLast">Last name</label><input type="text" id="pLast" autocomplete="off" autocapitalize="words"></div>
+    </div>
+    <div class="field"><label for="pAid">Mobility aid</label>
+      <select id="pAid"><option>walker</option><option>cane</option><option>rollator</option><option>wheelchair</option><option>crutches</option><option>mobility aid</option></select>
+      <span class="hint">Used in the patient’s messages, such as “Your walker is too far away.”</span></div>
+    <div class="field"><span class="flabel" id="lSize">Text size</span>
+      <div class="seg" role="group" aria-labelledby="lSize">
+        <button data-psize="1">Small</button><button data-psize="2">Medium</button><button data-psize="3">Large</button>
+      </div></div>
+    <div class="field"><span class="flabel" id="lVoice">Read messages out loud</span>
+      <div class="seg" role="group" aria-labelledby="lVoice">
+        <button data-pvoice="on">On</button><button data-pvoice="off">Off</button>
+      </div></div>
+  </section>
+
+  <section class="panel person" aria-labelledby="hCare">
+    <h2 id="hCare">Caretaker <span class="role">Receives alerts</span></h2>
+    <p class="note">The emergency contact who gets alerts. These choices only affect the caretaker.</p>
+    <div class="namepair">
+      <div class="field"><label for="cFirst">First name</label><input type="text" id="cFirst" autocomplete="off" autocapitalize="words"></div>
+      <div class="field"><label for="cLast">Last name</label><input type="text" id="cLast" autocomplete="off" autocapitalize="words"></div>
+    </div>
+    <div class="field"><label for="cRel">Relationship to patient</label><input type="text" id="cRel" placeholder="Daughter, nurse, neighbor"></div>
+    <div class="field"><label for="cPhone">Phone number</label><input type="tel" id="cPhone" placeholder="+15855550123">
+      <span class="hint">Shown to the patient as a “Call” button.</span></div>
+    <h3 class="sub">How Alerts Reach the Caretaker</h3>
+    <div class="field"><label for="ntfyTopic">Phone notification name (ntfy app)</label>
+      <textarea id="ntfyTopic" class="mono" rows="2" spellcheck="false" autocapitalize="off" autocomplete="off" aria-describedby="topicHint"></textarea>
+      <div class="btnrow">
+        <button class="btn plain" id="copyTopic" type="button"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><span>Copy name</span></button>
+        <button class="btn plain" id="newTopic" type="button"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg><span>New name</span></button>
+      </div>
+      <p class="saved" id="topicMsg" role="status"></p>
+      <span class="hint" id="topicHint">This name was made at random for this patient. Install the free ntfy app, tap “Subscribe to topic,” and paste it in exactly. Anyone with the name can see the alerts, so share it only with the caretaker.</span></div>
+    <div class="stack" style="margin-bottom:.75rem"><button class="btn plain" id="testAlert">Send a test alert</button></div>
+    <h3 class="sub">Settings Lock</h3>
+    <div class="field"><label for="cPin">4-digit code to open these settings (optional)</label><input type="password" id="cPin" inputmode="numeric" maxlength="4" pattern="[0-9]*" autocomplete="off">
+      <span class="hint">Keeps settings from being changed by accident. Leave empty for no code.</span></div>
+  </section>
+
+  <section class="panel" aria-labelledby="hWhen">
+    <h2 id="hWhen">When to Send an Alert</h2>
+    <p class="note">Alert thresholds apply to both the app and the watch.</p>
+    <div class="field slider">
+      <div class="slabel"><label for="spo2Min">Blood oxygen falls below</label><output for="spo2Min" id="spo2MinOut"></output></div>
+      <input type="range" id="spo2Min" min="80" max="98" step="1">
+      <div class="ends" aria-hidden="true"><span data-min="spo2Min"></span><span data-max="spo2Min"></span></div>
+      </div>
+    <div class="field slider">
+      <div class="slabel"><label for="hrMin">Heart rate falls below</label><output for="hrMin" id="hrMinOut"></output></div>
+      <input type="range" id="hrMin" min="30" max="80" step="1">
+      <div class="ends" aria-hidden="true"><span data-min="hrMin"></span><span data-max="hrMin"></span></div>
+      </div>
+    <div class="field slider">
+      <div class="slabel"><label for="hrMax">Heart rate rises above</label><output for="hrMax" id="hrMaxOut"></output></div>
+      <input type="range" id="hrMax" min="90" max="180" step="1">
+      <div class="ends" aria-hidden="true"><span data-min="hrMax"></span><span data-max="hrMax"></span></div>
+      </div>
+    <div class="field slider">
+      <div class="slabel"><label for="distMax">Patient is farther than this from the mobility aid</label><output for="distMax" id="distMaxOut"></output></div>
+      <input type="range" id="distMax" min="2" max="50" step="1">
+      <div class="ends" aria-hidden="true"><span data-min="distMax"></span><span data-max="distMax"></span></div>
+      <span class="hint">The watch also buzzes and flashes at this distance.</span></div>
+    <div class="field slider">
+      <div class="slabel"><label for="sustain">Reading must stay out of range for</label><output for="sustain" id="sustainOut"></output></div>
+      <input type="range" id="sustain" min="0" max="60" step="1">
+      <div class="ends" aria-hidden="true"><span data-min="sustain"></span><span data-max="sustain"></span></div>
+      <span class="hint">Prevents texts caused by a brief sensor glitch.</span></div>
+    <div class="field slider">
+      <div class="slabel"><label for="fallWait">Time the patient has to press “I’m OK” after a fall</label><output for="fallWait" id="fallWaitOut"></output></div>
+      <input type="range" id="fallWait" min="15" max="120" step="5">
+      <div class="ends" aria-hidden="true"><span data-min="fallWait"></span><span data-max="fallWait"></span></div>
+      <span class="hint">Older adults may need longer to reach the screen. 45 seconds or more is a good start.</span></div>
+    <div class="field slider">
+      <div class="slabel"><label for="cooldown">Wait before repeating the same alert</label><output for="cooldown" id="cooldownOut"></output></div>
+      <input type="range" id="cooldown" min="1" max="30" step="1">
+      <div class="ends" aria-hidden="true"><span data-min="cooldown"></span><span data-max="cooldown"></span></div>
+      </div>
+    <div class="stack" style="margin:.25rem 1.1rem 1rem"><button class="btn plain" id="resetAlerts">Use recommended values</button></div>
+  </section>
+
+  <section class="panel">
+    <h2>Watch Connection</h2>
+    <p class="note">The patient only sees one “Connect my watch” button. Choose what it does.</p>
+    <div class="field"><span class="flabel">Connect using</span>
+      <div class="seg" role="group" aria-label="Connection type">
+        <button data-mode="ble">Bluetooth</button><button data-mode="ws">Wi‑Fi</button><button data-mode="demo">Demo</button>
+      </div>
+      <span class="hint" id="modeHint"></span></div>
+    <div class="field" id="wsField"><label for="wsUrl">Watch Wi‑Fi address</label><input type="text" id="wsUrl" placeholder="ws://trackit.local/ws"></div>
+    <div class="field" id="demoField">
+      <span class="flabel">Try an alert (demo only)</span>
+      <div class="seg">
+        <button data-sim="fall">Fall</button><button data-sim="walk">Walk away</button>
+        <button data-sim="spo2">Low oxygen</button><button data-sim="hr">High heart rate</button><button data-sim="reset">Normal</button>
+      </div></div>
+    <div class="stack" style="margin:.25rem 1.1rem 1rem"><button class="btn plain" id="disconnectBtn">Disconnect watch</button></div>
+  </section>
+
+
+  <section class="panel">
+    <h2>Activity</h2>
+    <ul class="log" id="log"><li><time>--</time><span>Nothing yet.</span></li></ul>
+  </section>
+
+  <div class="savebar">
+    <button class="btn" id="saveAll"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Save settings</button>
+    <p class="saved" id="savedMsg" role="status"></p>
+  </div>
+  <div class="stack"><button class="btn plain" data-back><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>Back to home screen</button></div>
+</main>
+
+<!-- ================= FULL-SCREEN MOMENTS ================= -->
+<section class="screen alarm" id="fallScreen" hidden role="alertdialog" aria-labelledby="fallTitle" aria-describedby="fallText">
+  <div class="inner"><div class="card">
+    <div class="screen-icon"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 20h20L12 3z"/><path d="M12 10v4M12 17.5v.01"/></svg></div>
+    <h1 id="fallTitle">Did You Fall?</h1>
+    <p class="lead" id="fallText">If you are OK, press “I’m OK.”</p>
+    <div class="ring" id="fallCount">45<small id="fallCountText">seconds until we tell your contact</small></div>
+    <button class="btn huge" id="okBtn">I’m OK</button>
+    <button class="btn help huge" id="fallHelpBtn">Get help now</button>
+  </div></div>
+</section>
+
+<section class="screen" id="confirmScreen" hidden role="alertdialog" aria-labelledby="confirmTitle">
+  <div class="inner"><div class="card">
+    <div class="screen-icon"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 20h20L12 3z"/><path d="M12 10v4M12 17.5v.01"/></svg></div>
+    <h1 id="confirmTitle">Send a Help Message?</h1>
+    <p class="lead" id="confirmText">We will tell your emergency contact you need help.</p>
+    <button class="btn help huge" id="confirmYes">Yes, send for help</button>
+    <button class="btn plain huge" id="confirmNo">No, go back</button>
+  </div></div>
+</section>
+
+<section class="screen" id="sentScreen" hidden role="alertdialog" aria-labelledby="sentTitle">
+  <div class="inner"><div class="card">
+    <div class="screen-icon" style="background:var(--go-bg);color:var(--go)"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></div>
+    <h1 id="sentTitle">Help Message Sent</h1>
+    <p class="lead" id="sentText">Your contact has been told.</p>
+    <a class="btn huge" id="sentCall" href="#">Call</a>
+    <button class="btn plain huge" id="falseAlarm">I’m OK now. Tell them it was a mistake.</button>
+    <button class="btn plain" id="sentClose">Back to home screen</button>
+  </div></div>
+</section>
+
+<section class="screen" id="agreeScreen" hidden role="dialog" aria-labelledby="agreeTitle">
+  <div class="inner"><div class="card">
+    <div class="screen-icon" style="background:var(--sunken);color:var(--ink)"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="3"/><path d="M9 6l1-3h4l1 3M9 18l1 3h4l1-3M12 9.5V12l1.5 1.5"/></svg></div>
+    <h1 id="agreeTitle">Bluetooth Connection Agreement</h1>
+    <div>
+      <p style="font-size:1.1rem;margin-bottom:.5rem">Your watch will share these with this phone:</p>
+      <ul style="font-size:1.1rem;margin:0;padding-left:1.25rem"><li>Heart rate and blood oxygen</li><li>How far you are from your <span data-aid>walker</span></li><li>Fall alerts</li><li>Battery level</li></ul>
+      <p style="font-size:1.1rem;margin-top:.75rem">Only alerts are sent to your care contact. Keep this phone charged and near you.</p>
+    </div>
+    <button class="btn huge" id="agreeYes">I agree. Connect.</button>
+    <button class="btn plain huge" id="agreeNo">Not now</button>
+  </div></div>
+</section>
+
+<section class="screen" id="pinScreen" hidden role="dialog" aria-labelledby="pinTitle">
+  <div class="inner"><div class="card">
+    <div class="screen-icon" style="background:var(--sunken);color:var(--ink)"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
+    <h1 id="pinTitle">Caretaker Code</h1>
+    <p class="lead">Enter the 4-digit code to change settings.</p>
+    <input type="password" id="pinEntry" inputmode="numeric" maxlength="4" pattern="[0-9]*" autocomplete="off" style="font-size:2rem;text-align:center;letter-spacing:.5em" aria-label="Caretaker code">
+    <p class="lead" id="pinMsg" style="color:var(--help);min-height:2rem" role="status"></p>
+    <button class="btn huge" id="pinOk">Open settings</button>
+    <button class="btn plain huge" id="pinCancel">Back to home screen</button>
+  </div></div>
+</section>
+
+<script>
+(() => {
+  // BLE identifiers: must match trackit_watch.ino
+  const SVC  = '4fafc201-1fb5-459e-8fcc-c5c9c331914b';
+  const DATA = 'beb5483e-36e1-4688-b7f5-ea07361b26a8';
+  const CMD  = '1c95d5e3-d8f7-413a-bf3d-7a2e5d7be87e';
+
+  const $ = id => document.getElementById(id);
+  const store = {
+    get(k, d){ try { const v = localStorage.getItem('trackit.'+k); return v ? JSON.parse(v) : d; } catch { return d; } },
+    set(k, v){ try { localStorage.setItem('trackit.'+k, JSON.stringify(v)); } catch {} }
+  };
+  // Three separate stores: alert/device settings (S), patient preferences (P), caretaker preferences (C).
+  // The watch reports meters and distMax is stored in meters; everything people see is in feet.
+  const FT = 0.3048;
+  const ft = m => Math.round(m / FT);
+  const ALERT_DEFAULTS = { spo2Min:90, hrMin:65, hrMax:120, distMax:10*FT, sustain:10, fallWait:45, cooldown:5 };
+  const toUI = (k,v) => k === 'distMax' ? Math.round(v / FT) : v;
+  const fromUI = (k,v) => k === 'distMax' ? v * FT : v;
+  const DEFAULTS = Object.assign({}, ALERT_DEFAULTS, { wsUrl:'ws://trackit.local/ws', mode: navigator.bluetooth ? 'ble' : 'ws', agreed:false });
+  const old = store.get('settings', {});
+  const S = Object.assign({}, DEFAULTS, old);
+  const P = Object.assign({ first:'', last:'', aid:'walker', size:2, voice:false }, store.get('patient', null) || {
+    first: old.patient || '', aid: old.aid || 'walker', size: old.size || 2, voice: false });
+  const C = Object.assign({ first:'', last:'', rel:'', phone:'', ntfyTopic:'', pin:'' }, store.get('caretaker', null) || {
+    first: old.cName || '', rel: old.cRel || '', phone: old.cPhone || '', ntfyTopic: old.ntfyTopic || '', pin: old.pin || '' });
+  ['patient','aid','cName','cRel','cPhone','ntfyTopic','hookUrl','pin','size','voice'].forEach(k => delete S[k]);
+  delete C.hookUrl; // relay option removed
+  const save = () => { store.set('settings', S); store.set('patient', P); store.set('caretaker', C); };
+
+  // Random ntfy topic per user: two easy-to-read words + 10 random characters (~60 bits from crypto).
+  const WORDS = ['amber','aspen','birch','brook','cedar','clover','coral','delta','ember','fern','harbor','hazel','juniper','lake','linden','maple',
+    'meadow','orchid','pebble','pine','prairie','quartz','raven','ridge','river','sage','spruce','summit','thistle','timber','willow','wren'];
+  const ALPHA = 'abcdefghjkmnpqrstuvwxyz23456789'; // no look-alikes (0/o, 1/l/i)
+  function randomTopic(){
+    const r = new Uint32Array(12); crypto.getRandomValues(r);
+    let tail = ''; for (let i = 2; i < 12; i++) tail += ALPHA[r[i] % ALPHA.length];
+    return `trackit-${WORDS[r[0] % WORDS.length]}-${WORDS[r[1] % WORDS.length]}-${tail}`;
+  }
+  if (!C.ntfyTopic){ C.ntfyTopic = randomTopic(); }
+  save();
+  const full = o => [o.first, o.last].filter(Boolean).join(' ');
+  const patientFull = () => full(P) || 'The patient';
+
+  let R = { spo2:null, hr:null, dist:null, fall:0, batW:null, batM:null, ts:0 };
+  let transport = null;
+  const breachStart = {}, lastSent = {}, active = new Set();
+  let fall = { phase:'none', endsAt:0, timer:null };
+  let lastSpoken = '';
+
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const contactName = () => C.first || 'your emergency contact';
+  const aidWord = () => P.aid || 'mobility aid';
+  const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+  // Title case: capitalize each word except short joining words (unless first or last)
+  const SMALL = new Set(['a','an','the','and','but','or','nor','for','to','of','in','on','at','by','as','from','with']);
+  const titleCase = str => str.split(' ').map((w, i, a) => {
+    const lw = w.toLowerCase();
+    if (i > 0 && i < a.length - 1 && SMALL.has(lw)) return lw;
+    return w.charAt(0).toUpperCase() + w.slice(1);
+  }).join(' ');
+
+  // ---------- Text size and voice ----------
+  function applyPrefs(){
+    document.documentElement.dataset.size = P.size;
+    $('speakBtn').setAttribute('aria-pressed', P.voice);
+    $('speakBtn').textContent = P.voice ? 'Voice on' : 'Voice off';
+  }
+  $('sizeBtn').onclick = () => { P.size = P.size >= 3 ? 1 : P.size + 1; save(); applyPrefs(); };
+  $('speakBtn').onclick = () => { P.voice = !P.voice; save(); applyPrefs(); if (P.voice) say('Voice is on.', true); else speechSynthesis && speechSynthesis.cancel(); };
+  function say(text, force){
+    if (!P.voice || !('speechSynthesis' in window)) return;
+    if (!force && text === lastSpoken) return;
+    lastSpoken = text;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text); u.rate = 0.9; speechSynthesis.speak(u);
+  }
+  const buzz = p => { try { navigator.vibrate && navigator.vibrate(p); } catch {} };
+
+  // ---------- Screens ----------
+  function show(id){ $(id).hidden = false; const b = $(id).querySelector('button, a'); b && b.focus(); }
+  function hide(id){ $(id).hidden = true; }
+  document.querySelectorAll('[data-back]').forEach(b => b.onclick = goHome);
+  function goHome(){ $('settings').hidden = true; $('home').hidden = false; window.scrollTo(0,0); render(); }
+
+  $('openSettings').onclick = () => {
+    if (C.pin){ $('pinEntry').value = ''; $('pinMsg').textContent = ''; show('pinScreen'); $('pinEntry').focus(); }
+    else openSettings();
+  };
+  $('pinOk').onclick = () => {
+    if ($('pinEntry').value === C.pin){ hide('pinScreen'); openSettings(); }
+    else $('pinMsg').textContent = 'That code is not right. Try again.';
+  };
+  $('pinEntry').onkeydown = e => { if (e.key === 'Enter') $('pinOk').click(); };
+  $('pinCancel').onclick = () => hide('pinScreen');
+
+  // [element id, store, key, kind]
+  async function copyText(text){
+    try { await navigator.clipboard.writeText(text); return true; }
+    catch {
+      const ta = document.createElement('textarea'); ta.value = text; ta.setAttribute('readonly',''); ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select(); let ok = false; try { ok = document.execCommand('copy'); } catch {} ta.remove(); return ok;
+    }
+  }
+  function topicMsg(text, bad){ const m = $('topicMsg'); m.style.color = bad ? 'var(--help)' : ''; m.textContent = text; clearTimeout(topicMsg.t); topicMsg.t = setTimeout(() => m.textContent = '', 5000); }
+  $('copyTopic').onclick = async () => {
+    const v = $('ntfyTopic').value.trim();
+    if (!v) return topicMsg('There is no name to copy. Press “New name.”', true);
+    const ok = await copyText(v);
+    if (ok){ $('copyTopic').querySelector('span').textContent = 'Copied'; setTimeout(() => $('copyTopic').querySelector('span').textContent = 'Copy name', 2500); topicMsg('Name copied. Paste it into the ntfy app.'); }
+    else { $('ntfyTopic').select(); topicMsg('Could not copy automatically. The name is selected; copy it by hand.', true); }
+  };
+  $('newTopic').onclick = () => {
+    const had = C.ntfyTopic && $('ntfyTopic').value.trim();
+    $('ntfyTopic').value = randomTopic();
+    topicMsg(had ? 'New name made. Press Save settings, then subscribe to the new name in ntfy. The old name will stop getting alerts.' : 'New name made. Press Save settings to keep it.');
+  };
+
+  const FIELDS = [
+    ['pFirst',P,'first'],['pLast',P,'last'],['pAid',P,'aid'],
+    ['cFirst',C,'first'],['cLast',C,'last'],['cRel',C,'rel'],['cPhone',C,'phone'],['ntfyTopic',C,'ntfyTopic'],['cPin',C,'pin'],
+    ['spo2Min',S,'spo2Min','n'],['hrMin',S,'hrMin','n'],['hrMax',S,'hrMax','n'],['distMax',S,'distMax','n'],
+    ['sustain',S,'sustain','n'],['fallWait',S,'fallWait','n'],['cooldown',S,'cooldown','n'],
+    ['wsUrl',S,'wsUrl'] ];
+  const FMT = { spo2Min:v=>v+'%', hrMin:v=>v+' BPM', hrMax:v=>v+' BPM', distMax:v=>v+' ft',
+    sustain:v=>v==0?'Right away':v+' sec', fallWait:v=>v+' sec', cooldown:v=>v+' min' };
+  let draftP = {}; // patient prefs chosen with buttons, applied on save
+  function paintSlider(el){
+    const id = el.id, pct = (el.value - el.min) / (el.max - el.min) * 100;
+    el.style.setProperty('--fill', pct + '%');
+    $(id+'Out').textContent = FMT[id](el.value);
+    el.setAttribute('aria-valuetext', FMT[id](el.value));
+  }
+  document.querySelectorAll('input[type=range]').forEach(el => {
+    document.querySelector(`[data-min="${el.id}"]`).textContent = FMT[el.id](el.min);
+    document.querySelector(`[data-max="${el.id}"]`).textContent = FMT[el.id](el.max);
+    el.addEventListener('input', () => {
+      // keep heart-rate limits at least 10 BPM apart
+      if (el.id === 'hrMin' && +$('hrMin').value > +$('hrMax').value - 10){ $('hrMax').value = Math.min(+$('hrMax').max, +$('hrMin').value + 10); paintSlider($('hrMax')); }
+      if (el.id === 'hrMax' && +$('hrMax').value < +$('hrMin').value + 10){ $('hrMin').value = Math.max(+$('hrMin').min, +$('hrMax').value - 10); paintSlider($('hrMin')); }
+      paintSlider(el);
+    });
+  });
+  $('resetAlerts').onclick = () => {
+    Object.entries(ALERT_DEFAULTS).forEach(([k,v]) => { $(k).value = toUI(k,v); paintSlider($(k)); });
+    $('savedMsg').style.color=''; $('savedMsg').textContent = 'Recommended values filled in. Press Save settings to keep them.';
+  };
+  function paintPatientPrefs(){
+    document.querySelectorAll('[data-psize]').forEach(b => b.setAttribute('aria-pressed', +b.dataset.psize === draftP.size));
+    document.querySelectorAll('[data-pvoice]').forEach(b => b.setAttribute('aria-pressed', (b.dataset.pvoice === 'on') === draftP.voice));
+  }
+  document.querySelectorAll('[data-psize]').forEach(b => b.onclick = () => { draftP.size = +b.dataset.psize; paintPatientPrefs(); });
+  document.querySelectorAll('[data-pvoice]').forEach(b => b.onclick = () => { draftP.voice = b.dataset.pvoice === 'on'; paintPatientPrefs(); });
+
+  function openSettings(){
+    FIELDS.forEach(([id,o,k]) => { $(id).value = toUI(id, o[k]); });
+    document.querySelectorAll('input[type=range]').forEach(paintSlider);
+    draftP = { size:P.size, voice:P.voice }; paintPatientPrefs();
+    setModeButtons();
+    $('home').hidden = true; $('settings').hidden = false; window.scrollTo(0,0);
+  }
+  function readFields(){
+    const next = FIELDS.map(([id,o,k,t]) => { const v = $(id).value.trim(); return [o,k, t === 'n' ? fromUI(id, parseFloat(v)) : v]; });
+    const pin = $('cPin').value.trim();
+    if (pin && !/^\d{4}$/.test(pin)) return 'The settings code must be exactly 4 numbers.';
+    next.forEach(([o,k,v]) => { if (!(typeof v === 'number' && isNaN(v))) o[k] = v; });
+    P.size = draftP.size; P.voice = draftP.voice;
+    return '';
+  }
+  $('saveAll').onclick = () => {
+    const err = readFields();
+    if (err){ $('savedMsg').style.color='var(--help)'; $('savedMsg').textContent = err; return; }
+    save(); applyPrefs(); sendCmd({ cmd:'config', distMax:S.distMax });
+    $('savedMsg').style.color=''; $('savedMsg').textContent = 'Settings saved.';
+    log('Settings saved'); render();
+    setTimeout(() => $('savedMsg').textContent = '', 4000);
+  };
+  $('testAlert').onclick = async () => {
+    const err = readFields(); if (err){ $('savedMsg').style.color='var(--help)'; $('savedMsg').textContent = err; return; } save();
+    const ok = await deliver('test', 'Test from TrackIt. If you got this, alerts are working.');
+    $('savedMsg').style.color = ok ? '' : 'var(--help)';
+    $('savedMsg').textContent = ok ? 'Test alert sent. Check the contact’s phone.' : 'The test did not go out. Check the notification name and the internet connection.';
+  };
+
+  function setModeButtons(){
+    document.querySelectorAll('[data-mode]').forEach(b => b.setAttribute('aria-pressed', b.dataset.mode === S.mode));
+    $('wsField').hidden = S.mode !== 'ws';
+    $('demoField').hidden = S.mode !== 'demo';
+    $('modeHint').textContent = {
+      ble:'Works in Chrome or Edge on Android and computers. Not on iPhone.',
+      ws:'Phone and watch must be on the same Wi‑Fi. Works on iPhone.',
+      demo:'Fake readings for practice. No watch needed.'
+    }[S.mode];
+  }
+  document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => { S.mode = b.dataset.mode; save(); setModeButtons(); });
+  $('disconnectBtn').onclick = () => { transport && transport.close(); };
+
+  // ---------- Connect ----------
+  $('connectBtn').onclick = () => {
+    if (S.mode === 'ble'){
+      if (!navigator.bluetooth){ setStatus('warn','!','This phone can’t use Bluetooth here','Ask your caretaker to switch the connection to Wi‑Fi.'); return; }
+      if (!S.agreed){ document.querySelectorAll('[data-aid]').forEach(e => e.textContent = aidWord()); show('agreeScreen'); return; }
+      connectBLE();
+    } else if (S.mode === 'ws') connectWS(S.wsUrl, true);
+    else startDemo();
+  };
+  $('agreeYes').onclick = () => { S.agreed = true; save(); hide('agreeScreen'); log('Bluetooth agreement accepted'); connectBLE(); };
+  $('agreeNo').onclick = () => hide('agreeScreen');
+
+  function connected(label){ log('Connected: ' + label); say('Your watch is connected.'); sendCmd({ cmd:'config', distMax:S.distMax }); render(); }
+  function onClosed(msg, auto){ transport = null; log(msg || 'Disconnected', 'w'); if (!auto) say('Your watch is not connected.'); render(); }
+
+  async function connectBLE(){
+    try {
+      transport && transport.close();
+      const device = await navigator.bluetooth.requestDevice({ filters:[{ namePrefix:'TrackIt' }], optionalServices:[SVC] });
+      setStatus('idle','…','Connecting to your watch','Please wait a moment.');
+      const server = await device.gatt.connect();
+      const svc = await server.getPrimaryService(SVC);
+      const dataCh = await svc.getCharacteristic(DATA);
+      let cmdCh = null; try { cmdCh = await svc.getCharacteristic(CMD); } catch {}
+      const dec = new TextDecoder(), enc = new TextEncoder();
+      dataCh.addEventListener('characteristicvaluechanged', e => ingest(dec.decode(e.target.value)));
+      await dataCh.startNotifications();
+      device.addEventListener('gattserverdisconnected', () => onClosed('Bluetooth connection lost'));
+      transport = { kind:'ble', send: o => cmdCh && cmdCh.writeValue(enc.encode(JSON.stringify(o))).catch(()=>{}),
+        close: () => device.gatt.connected && device.gatt.disconnect() };
+      connected('Bluetooth');
+    } catch (err) {
+      if (err && err.name === 'NotFoundError') { render(); return; }
+      log('Bluetooth failed: ' + (err.message || err), 'w');
+      setStatus('warn','!','The watch did not connect','Make sure the watch is on and close to this phone. Then press Connect again.');
+    }
+  }
+
+  function connectWS(url, manual){
+    transport && transport.close();
+    let ws; try { ws = new WebSocket(url); } catch { log('Wi‑Fi address not valid: ' + url, 'w'); setStatus('warn','!','The watch did not connect','Ask your caretaker to check the watch address.'); return; }
+    let byUser = false, opened = false;
+    setStatus('idle','…','Connecting to your watch','Please wait a moment.');
+    ws.onopen = () => { opened = true; connected('Wi‑Fi'); };
+    ws.onmessage = e => ingest(e.data);
+    ws.onclose = () => {
+      if (byUser) return onClosed();
+      if (!opened && manual){ transport = null; log('Could not reach ' + url, 'w'); setStatus('warn','!','The watch did not connect','Make sure the watch is on and the phone is on home Wi‑Fi. Then press Connect again.'); return; }
+      onClosed('Wi‑Fi lost, trying again', true);
+      setTimeout(() => { if (!transport) connectWS(url, false); }, 5000);
+    };
+    transport = { kind:'ws', send: o => ws.readyState === 1 && ws.send(JSON.stringify(o)), close: () => { byUser = true; ws.close(); } };
+  }
+
+  let demo = null;
+  function startDemo(){
+    transport && transport.close();
+    const sim = { spo2:97, hr:72, dist:0.8, fall:0, batW:86, batM:92, mode:'normal' };
+    const id = setInterval(() => {
+      const j = (a,b) => a + Math.random()*(b-a);
+      sim.dist = sim.mode === 'walk' ? Math.min(sim.dist + 0.6, 12) : Math.max(0.4, Math.min(1.6, sim.dist + j(-.2,.2)));
+      sim.spo2 = sim.mode === 'spo2' ? Math.round(j(84,88)) : Math.round(j(95,99));
+      sim.hr   = sim.mode === 'hr'   ? Math.round(j(128,140)) : Math.round(j(66,80));
+      sim.batW = Math.max(0, sim.batW - 0.01);
+      ingest(JSON.stringify({ spo2:sim.spo2, hr:sim.hr, dist:+sim.dist.toFixed(1), fall:sim.fall, bat_w:Math.round(sim.batW), bat_m:Math.round(sim.batM) }));
+    }, 1000);
+    demo = sim;
+    transport = { kind:'demo', send: o => { if (o.cmd === 'cancel_fall') sim.fall = 0; }, close: () => { clearInterval(id); demo = null; onClosed('Demo stopped'); } };
+    connected('Demo');
+  }
+  document.querySelectorAll('[data-sim]').forEach(b => b.onclick = () => {
+    if (!demo){ $('savedMsg').textContent = 'Start the demo first: choose Demo, go back home and press Connect.'; return; }
+    const k = b.dataset.sim;
+    if (k === 'fall') demo.fall = 1;
+    else if (k === 'reset'){ demo.mode = 'normal'; demo.fall = 0; demo.dist = 0.8; }
+    else demo.mode = k;
+    goHome();
+  });
+  function sendCmd(o){ transport && transport.send(o); }
+
+  // ---------- Data in: {"spo2":97,"hr":72,"dist":1.4,"fall":0,"bat_w":88,"bat_m":91} ----------
+  function ingest(text){
+    let d; try { d = JSON.parse(text); } catch { return; }
+    const num = v => (typeof v === 'number' && isFinite(v)) ? v : null;
+    R = { spo2:num(d.spo2), hr:num(d.hr), dist:num(d.dist), fall:d.fall ? 1 : 0, batW:num(d.bat_w), batM:num(d.bat_m), ts:Date.now() };
+    evaluate(); render();
+  }
+
+  // ---------- Set points ----------
+  const CHECKS = [
+    { id:'spo2', test:() => R.spo2 > 0 && R.spo2 < S.spo2Min,
+      contact:() => `Blood oxygen is ${R.spo2}% (alert below ${S.spo2Min}%).`,
+      patient:() => ['Your oxygen is low', `Please sit down and rest. ${cap(contactName())} has been told.`] },
+    { id:'hrLow', test:() => R.hr > 0 && R.hr < S.hrMin,
+      contact:() => `Heart rate is ${R.hr} BPM (alert below ${S.hrMin}).`,
+      patient:() => ['Your heart rate is low', `Please sit down and rest. ${cap(contactName())} has been told.`] },
+    { id:'hrHigh', test:() => R.hr !== null && R.hr > S.hrMax,
+      contact:() => `Heart rate is ${R.hr} BPM (alert above ${S.hrMax}).`,
+      patient:() => ['Your heart rate is high', `Please sit down and rest. ${cap(contactName())} has been told.`] },
+    { id:'dist', test:() => R.dist !== null && R.dist > S.distMax,
+      contact:() => `${patientFull()} is ${(R.dist / FT).toFixed(1)} feet from their ${aidWord()} (limit ${ft(S.distMax)} feet).`,
+      patient:() => [`Your ${aidWord()} is too far away`, `Please go back and get your ${aidWord()}.`] },
+  ];
+
+  function evaluate(){
+    const now = Date.now();
+    for (const c of CHECKS){
+      if (c.test()){
+        breachStart[c.id] ??= now;
+        if (now - breachStart[c.id] >= S.sustain*1000 && !active.has(c.id)){
+          active.add(c.id); log(c.contact(), 'a');
+          if (!lastSent[c.id] || now - lastSent[c.id] > S.cooldown*60000){ lastSent[c.id] = now; deliver(c.id, c.contact()); }
+        }
+      } else {
+        if (active.has(c.id)) log('Back in range: ' + c.id);
+        delete breachStart[c.id]; active.delete(c.id);
+      }
+    }
+    if (R.fall && (fall.phase === 'none' || (fall.phase === 'sent' && fall.cleared))) startFall();
+    if (!R.fall && fall.phase === 'sent') fall.cleared = true;
+    if (!R.fall && fall.phase === 'counting'){ endFall('cancelled'); log('Fall cancelled on the watch'); say('OK. No message was sent.', true); }
+    if (!R.fall && fall.phase === 'cancelled') fall.phase = 'none';
+    if (!R.fall && fall.phase === 'sent' && Date.now() - fall.sentAt > 10*60000) fall.phase = 'none';
+  }
+
+  // ---------- Fall flow ----------
+  function startFall(){
+    fall.cleared = false; fall.phase = 'counting'; fall.endsAt = Date.now() + S.fallWait*1000;
+    log('Fall detected', 'a');
+    show('fallScreen'); buzz([600,300,600,300,600]);
+    say(`Did you fall? If you are OK, press the button that says I'm OK.`, true);
+    tickFall(); fall.timer = setInterval(tickFall, 250);
+  }
+  function tickFall(){
+    const left = Math.max(0, Math.ceil((fall.endsAt - Date.now())/1000));
+    $('fallCount').firstChild.nodeValue = left;
+    $('fallCountText').textContent = `seconds until we tell ${contactName()}`;
+    if (left > 0 && left % 15 === 0 && Date.now() - (fall.lastRemind||0) > 2000){ fall.lastRemind = Date.now(); say(`If you are OK, press I'm OK.`, true); buzz(400); }
+    if (left <= 0) sendFall('No answer within ' + S.fallWait + ' seconds.');
+  }
+  function endFall(phase){ clearInterval(fall.timer); fall.timer = null; fall.phase = phase; hide('fallScreen'); render(); }
+  function sendFall(reason){
+    endFall('sent'); sendCmd({ cmd:'cancel_fall' });
+    fall.phase = 'sent'; fall.sentAt = Date.now();
+    deliver('fall', `FALL: ${patientFull()} may have fallen. ${reason}` + (R.hr ? ` Heart rate ${R.hr} BPM.` : '') + (R.spo2 ? ` Oxygen ${R.spo2}%.` : ''), true);
+    showSent();
+  }
+  $('okBtn').onclick = () => {
+    if (fall.phase !== 'counting') return;
+    endFall('cancelled'); sendCmd({ cmd:'cancel_fall' }); log('Patient pressed I’m OK');
+    say('Good. No message was sent.', true);
+  };
+  $('fallHelpBtn').onclick = () => { if (fall.phase === 'counting'){ sendCmd({ cmd:'cancel_fall' }); sendFall('Patient pressed Get help now.'); } };
+
+  // ---------- I need help ----------
+  $('helpBtn').onclick = () => {
+    $('confirmText').textContent = `We will tell ${contactName()} that you need help.`;
+    show('confirmScreen'); say(`Do you want to send a help message to ${contactName()}?`, true);
+  };
+  $('confirmNo').onclick = () => hide('confirmScreen');
+  $('confirmYes').onclick = () => {
+    hide('confirmScreen'); log('Patient pressed I need help', 'a');
+    deliver('help', `${patientFull()} pressed "I need help".` + (R.hr ? ` Heart rate ${R.hr} BPM.` : ''), true);
+    showSent();
+  };
+  function showSent(){
+    $('sentText').textContent = `${cap(contactName())} has been told. If you are hurt, call 911.`;
+    if (C.phone){ $('sentCall').hidden = false; $('sentCall').href = 'tel:' + C.phone; $('sentCall').textContent = 'Call ' + (C.first || 'contact'); }
+    else $('sentCall').hidden = true;
+    show('sentScreen'); say(`Help message sent. ${cap(contactName())} has been told. If you are hurt, call 911.`, true);
+  }
+  $('falseAlarm').onclick = () => {
+    if (fall.phase === 'sent') fall.phase = 'none';
+    deliver('ok', `Update: ${patientFull()} says they are OK. The last alert was a mistake.`);
+    log('Patient sent “I\'m OK, it was a mistake”'); hide('sentScreen'); say(`OK. We told ${contactName()} you are fine.`, true); render();
+  };
+  $('sentClose').onclick = () => { hide('sentScreen'); render(); };
+
+  // ---------- Delivery ----------
+  async function deliver(type, message, urgent){
+    const jobs = [];
+    const title = type === 'test' ? 'TrackIt test' : type === 'ok' ? 'TrackIt: all OK' : 'TrackIt alert - ' + patientFull();
+    const headers = {
+      'Title':title,
+      'Priority': urgent ? 'urgent' : (type === 'ok' ? 'default' : 'high'),
+      'Tags': type === 'ok' ? 'white_check_mark' : (urgent ? 'rotating_light' : 'warning')
+    }
+    if (C.ntfyTopic){
+      jobs.push(fetch('https://ntfy.sh/' + encodeURIComponent(C.ntfyTopic), 
+        { method:'POST', body:message, headers:headers}
+      ).then(r => r.ok).catch(() => false));
+    }
+    else { log('No notification name set up', 'w'); return false; }
+    const ok = (await Promise.all(jobs)).some(Boolean);
+    log(ok ? 'Alert delivered: ' + title : 'Alert failed to send', ok ? '' : 'a');
+    if (!ok && type !== 'test'){ $('sentText').textContent = `The message could not be sent. Please call ${contactName()} or 911.`; say(`The message could not be sent. Please call for help.`, true); }
+    return ok;
+  }
+
+  // ---------- Render home ----------
+  const STATUS_ICONS = { ok:`<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>`, warn:`<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 20h20L12 3z"/><path d="M12 10v4M12 17.5v.01"/></svg>`, alarm:`<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 20h20L12 3z"/><path d="M12 10v4M12 17.5v.01"/></svg>`, idle:`<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="3"/><path d="M9 6l1-3h4l1 3M9 18l1 3h4l1-3M12 9.5V12l1.5 1.5"/></svg>` };
+  function setStatus(kind, icon, title, text){
+    $('status').className = 'status ' + kind; $('statusIcon').innerHTML = STATUS_ICONS[kind] || '';
+    $('statusTitle').textContent = titleCase(title); $('statusText').textContent = text;
+  }
+  function tag(id, kind, text){ const t = $(id); t.className = 'tag ' + kind; t.textContent = text; }
+
+  function render(){
+    const name = P.first ? ', ' + P.first : '';
+    const h = new Date().getHours();
+    $('hello').textContent = (h < 12 ? 'Good Morning' : h < 18 ? 'Good Afternoon' : 'Good Evening') + name;
+    $('today').textContent = new Date().toLocaleDateString([], { weekday:'long', month:'long', day:'numeric' }) + ', ' + new Date().toLocaleTimeString([], { hour:'numeric', minute:'2-digit' });
+
+    const live = !!transport, has = live && R.ts, stale = has && Date.now() - R.ts > 15000;
+    $('connectArea').hidden = live;
+    $('readings').hidden = !has; $('readingsLabel').hidden = !has;
+    $('bnPatient').textContent = full(P) || 'Not set';
+    $('bnContact').textContent = full(C) ? full(C) + (C.rel ? ' (' + C.rel + ')' : '') : 'Not set';
+    const wb = $('bnWatch');
+    if (!live){ wb.textContent = 'Not connected'; wb.className = 'state-off'; }
+    else if (stale || !R.ts){ wb.textContent = R.ts ? 'No signal' : 'Connecting'; wb.className = 'state-warn'; }
+    else { wb.textContent = 'Connected, ' + ({ble:'Bluetooth', ws:'Wi‑Fi', demo:'demo mode'}[transport.kind]); wb.className = 'state-on'; }
+    $('aidLabel').textContent = 'Distance to your ' + aidWord();
+
+    if (has){
+      $('hrNum').innerHTML = R.hr ? `${R.hr}<small class="u">beats per minute</small>` : '--';
+      if (!R.hr) tag('hrTag','none','No reading'); else if (R.hr < S.hrMin) tag('hrTag', active.has('hrLow')?'alarm':'warn','Low'); else if (R.hr > S.hrMax) tag('hrTag', active.has('hrHigh')?'alarm':'warn','High'); else tag('hrTag','ok','Normal');
+      $('oxNum').innerHTML = R.spo2 ? `${R.spo2}<small>%</small>` : '--';
+      if (!R.spo2) tag('oxTag','none','No reading'); else if (R.spo2 < S.spo2Min) tag('oxTag', active.has('spo2')?'alarm':'warn','Low'); else tag('oxTag','ok','Normal');
+      $('distNum').innerHTML = R.dist !== null ? `${ft(R.dist)}<small class="u">${ft(R.dist) === 1 ? 'foot' : 'feet'}</small>` : '--';
+      if (R.dist === null) tag('distTag','none','No reading'); else if (R.dist > S.distMax) tag('distTag','alarm','Too far'); else if (R.dist > S.distMax*0.7) tag('distTag','warn','Getting far'); else tag('distTag','ok','Close by');
+      $('batNum').innerHTML = R.batW !== null ? `${Math.round(R.batW)}<small>%</small>` : '--';
+      if (R.batW === null) tag('batTag','none','--'); else if (R.batW < 15) tag('batTag','alarm','Charge now'); else if (R.batW < 35) tag('batTag','warn','Charge tonight'); else tag('batTag','ok','Good');
+    }
+
+    // One message, most important first
+    if (!live) setStatus('idle','…','Your watch is not connected','Press “Connect my watch” to start.');
+    else if (!R.ts) setStatus('idle','…','Connecting to your watch','Please wait a moment.');
+    else if (fall.phase === 'sent') setStatus('alarm','!','Help message sent', `${cap(contactName())} has been told about the fall. If you are hurt, call 911.`);
+    else if (stale) setStatus('warn','!','We can’t hear from your watch','Make sure you are wearing it and it is charged.');
+    else if (active.size){ const c = CHECKS.find(x => active.has(x.id)); const [t,p] = c.patient(); setStatus('alarm','!',t,p); }
+    else if (R.dist !== null && R.dist > S.distMax) { setStatus('warn','!',`Your ${aidWord()} is too far away`,`Please go back and get your ${aidWord()}.`); }
+    else if (R.batW !== null && R.batW < 15) setStatus('warn','!','Your watch battery is low','Please put your watch on the charger soon.');
+    else setStatus('ok','✓','Everything looks good', `Your watch is working. We will tell ${contactName()} if you need help.`);
+
+    // Speak status changes once (not on every refresh)
+    const t = $('statusTitle').textContent;
+    if (live && R.ts && $('status').classList.contains('ok') === false && $('fallScreen').hidden && $('sentScreen').hidden) say(t + '. ' + $('statusText').textContent);
+    if ($('status').classList.contains('ok')) lastSpoken = t;
+
+    // Contact buttons
+    $('contactArea').innerHTML = C.phone
+      ? `<a class="btn plain huge" href="tel:${esc(C.phone)}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg>Call ${esc(C.first || 'my contact')}${C.rel ? ' (' + esc(C.rel) + ')' : ''}</a>`
+      : '';
+  }
+
+  // ---------- Log (caretaker screen) ----------
+  let logStarted = false;
+  function log(text, kind){
+    const ul = $('log'); if (!logStarted){ ul.innerHTML = ''; logStarted = true; }
+    const li = document.createElement('li');
+    li.innerHTML = `<time>${new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit',second:'2-digit'})}</time><span class="${kind||''}">${esc(text)}</span>`;
+    ul.prepend(li); while (ul.children.length > 80) ul.lastChild.remove();
+  }
+
+  applyPrefs(); render(); setInterval(render, 5000);
+})();
+</script>
+</body>
+</html>
